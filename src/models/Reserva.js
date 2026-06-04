@@ -11,7 +11,7 @@ const Reserva = sequelize.define(
     },
     email: {
       type: DataTypes.STRING(150),
-      allowNull: false,
+      allowNull: true,
       validate: {
         isEmail: { msg: 'E-mail inválido' },
       },
@@ -51,7 +51,7 @@ const Reserva = sequelize.define(
     },
     nome: {
       type: DataTypes.STRING(100),
-      allowNull: false,
+      allowNull: true,
       validate: {
         notEmpty: { msg: 'Nome não pode ser vazio' },
       },
