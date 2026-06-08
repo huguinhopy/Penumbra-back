@@ -14,17 +14,20 @@ const LogAcaoAdmin = sequelize.define(
       allowNull: false,
       references: { model: 'administradores', key: 'id_admin' },
     },
-    id_reserva: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: { model: 'reservas', key: 'id_reserva' },
-    },
     acao: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING(100),
       allowNull: false,
       validate: {
         notEmpty: { msg: 'Ação não pode ser vazia' },
       },
+    },
+    entidade: {
+      type: DataTypes.ENUM('reserva', 'mesa', 'admin', 'auth'),
+      allowNull: false,
+    },
+    entidade_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     descricao: {
       type: DataTypes.TEXT,

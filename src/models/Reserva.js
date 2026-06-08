@@ -9,16 +9,27 @@ const Reserva = sequelize.define(
       primaryKey: true,
       autoIncrement: true,
     },
+    nome: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      validate: {
+        notEmpty: { msg: 'Nome não pode ser vazio' },
+      },
+    },
     email: {
       type: DataTypes.STRING(150),
-      allowNull: true,
+      allowNull: false,
       validate: {
         isEmail: { msg: 'E-mail inválido' },
       },
     },
+    telefone: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+    },
     id_mesa: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: { model: 'mesas', key: 'id_mesa' },
     },
     data_hora: {
@@ -47,17 +58,6 @@ const Reserva = sequelize.define(
     },
     observacoes: {
       type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    nome: {
-      type: DataTypes.STRING(100),
-      allowNull: true,
-      validate: {
-        notEmpty: { msg: 'Nome não pode ser vazio' },
-      },
-    },
-    telefone: {
-      type: DataTypes.STRING(20),
       allowNull: true,
     },
     criado_em: {

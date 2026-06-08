@@ -1,5 +1,66 @@
 const { Administrador, LogAcaoAdmin } = require('../models');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { enviarConviteAdmin } = require('../services/mailService');
+
+// POST /administradores/login
+const login = async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+    if (!email || !senha) return res.status(400).json({ erro: 'Informe e-mail e senha' });
+
+    const admin = await Administrador.findOne({ where: { email } });
+
+    if (admin && admin.bloqueado_ate && new Date() < new Date(admin.bloqueado_ate)) {
+      return res.status(403).json({ erro: 'Conta bloqueada temporariamente. Tente novamente mais tarde.' });
+    }
+
+    if (!admin) {
+      return res.status(401).json({ erro: 'E-mail ou senha incorretos' });
+    }
+
+    const senhaValida = await bcrypt.compare(senha, admin.senha_hash);
+
+    if (!senhaValida) {
+      const tentativas = (admin.tentativas_login || 0) + 1;
+      const bloqueado_ate = tentativas >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+      await admin.update({ tentativas_login: tentativas, bloqueado_ate });
+
+      await LogAcaoAdmin.create({
+        id_admin: admin.id_admin,
+        acao: 'login_falhou',
+        entidade: 'auth',
+        entidade_id: admin.id_admin,
+        descricao: `Tentativa ${tentativas} de 5`,
+      });
+
+      if (bloqueado_ate) {
+        return res.status(403).json({ erro: 'Conta bloqueada por 15 minutos após 5 tentativas.' });
+      }
+      return res.status(401).json({ erro: 'E-mail ou senha incorretos' });
+    }
+
+    await admin.update({ tentativas_login: 0, bloqueado_ate: null, ultimo_acesso: new Date() });
+
+    await LogAcaoAdmin.create({
+      id_admin: admin.id_admin,
+      acao: 'login_realizado',
+      entidade: 'auth',
+      entidade_id: admin.id_admin,
+    });
+
+    const token = jwt.sign(
+      { id_admin: admin.id_admin, nivel_acesso: admin.nivel_acesso },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    const { senha_hash: _, ...adminSemSenha } = admin.toJSON();
+    return res.json({ token, admin: adminSemSenha });
+  } catch (error) {
+    return res.status(500).json({ erro: 'Erro no login', detalhe: error.message });
+  }
+};
 
 // GET /administradores
 const listar = async (req, res) => {
@@ -19,14 +80,6 @@ const buscarPorId = async (req, res) => {
   try {
     const admin = await Administrador.findByPk(req.params.id, {
       attributes: { exclude: ['senha_hash'] },
-      include: [
-        {
-          model: LogAcaoAdmin,
-          as: 'logs',
-          limit: 20,
-          order: [['realizado_em', 'DESC']],
-        },
-      ],
     });
     if (!admin) return res.status(404).json({ erro: 'Administrador não encontrado' });
     return res.json(admin);
@@ -45,6 +98,18 @@ const criar = async (req, res) => {
 
     const senha_hash = await bcrypt.hash(senha, 10);
     const admin = await Administrador.create({ nome, email, senha_hash, nivel_acesso });
+
+    if (req.admin) {
+      await LogAcaoAdmin.create({
+        id_admin: req.admin.id_admin,
+        acao: 'admin_criado',
+        entidade: 'admin',
+        entidade_id: admin.id_admin,
+        descricao: `${admin.nome} (${admin.nivel_acesso}) criado por ${req.admin.id_admin}`,
+      });
+
+      await enviarConviteAdmin({ nome, email, senha_temporaria: senha });
+    }
 
     const { senha_hash: _, ...adminSemSenha } = admin.toJSON();
     return res.status(201).json(adminSemSenha);
@@ -74,6 +139,15 @@ const atualizar = async (req, res) => {
     }
 
     await admin.update(dados);
+
+    await LogAcaoAdmin.create({
+      id_admin: req.admin.id_admin,
+      acao: 'admin_atualizado',
+      entidade: 'admin',
+      entidade_id: admin.id_admin,
+      descricao: `Dados de ${admin.nome} atualizados`,
+    });
+
     const { senha_hash: _, ...adminSemSenha } = admin.toJSON();
     return res.json(adminSemSenha);
   } catch (error) {
@@ -92,6 +166,23 @@ const remover = async (req, res) => {
   try {
     const admin = await Administrador.findByPk(req.params.id);
     if (!admin) return res.status(404).json({ erro: 'Administrador não encontrado' });
+
+    if (admin.nivel_acesso === 'dono') {
+      return res.status(403).json({ erro: 'O dono não pode ser removido' });
+    }
+
+    if (req.params.id === String(req.admin.id_admin)) {
+      return res.status(403).json({ erro: 'Você não pode remover a si mesmo' });
+    }
+
+    await LogAcaoAdmin.create({
+      id_admin: req.admin.id_admin,
+      acao: 'admin_removido',
+      entidade: 'admin',
+      entidade_id: admin.id_admin,
+      descricao: `${admin.nome} (${admin.nivel_acesso}) removido`,
+    });
+
     await admin.destroy();
     return res.status(204).send();
   } catch (error) {
@@ -99,23 +190,4 @@ const remover = async (req, res) => {
   }
 };
 
-// POST /administradores/login
-const login = async (req, res) => {
-  try {
-    const { email, senha } = req.body;
-    if (!email || !senha) return res.status(400).json({ erro: 'Informe e-mail e senha' });
-
-    const admin = await Administrador.findOne({ where: { email } });
-    if (!admin) return res.status(401).json({ erro: 'Credenciais inválidas' });
-
-    const senhaValida = await bcrypt.compare(senha, admin.senha_hash);
-    if (!senhaValida) return res.status(401).json({ erro: 'Credenciais inválidas' });
-
-    const { senha_hash: _, ...adminSemSenha } = admin.toJSON();
-    return res.json({ mensagem: 'Login realizado', admin: adminSemSenha });
-  } catch (error) {
-    return res.status(500).json({ erro: 'Erro no login', detalhe: error.message });
-  }
-};
-
-module.exports = { listar, buscarPorId, criar, atualizar, remover, login };
+module.exports = { login, listar, buscarPorId, criar, atualizar, remover };

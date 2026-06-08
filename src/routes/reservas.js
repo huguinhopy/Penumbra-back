@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/reservaController');
+const { autenticar } = require('../middlewares/auth');
 
-router.get('/', ctrl.listar);
-router.get('/:id', ctrl.buscarPorId);
 router.post('/', ctrl.criar);
-router.put('/:id', ctrl.atualizar);
-router.patch('/:id/status', ctrl.atualizarStatus);
 router.delete('/:id', ctrl.remover);
+
+router.get('/', autenticar, ctrl.listar);
+router.get('/:id', autenticar, ctrl.buscarPorId);
+router.patch('/:id/status', autenticar, ctrl.atualizarStatus);
 
 module.exports = router;

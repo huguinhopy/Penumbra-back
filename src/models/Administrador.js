@@ -29,9 +29,22 @@ const Administrador = sequelize.define(
       allowNull: false,
     },
     nivel_acesso: {
-      type: DataTypes.ENUM('super_admin', 'admin'),
+      type: DataTypes.ENUM('atendente', 'gerente', 'administrador', 'dono'),
       allowNull: false,
-      defaultValue: 'admin',
+      defaultValue: 'atendente',
+    },
+    tentativas_login: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    bloqueado_ate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    ultimo_acesso: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
   },
   {

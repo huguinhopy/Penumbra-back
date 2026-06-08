@@ -1,4 +1,4 @@
-const { Mesa, Reserva } = require('../models');
+const { Mesa, Reserva, LogAcaoAdmin } = require('../models');
 const { Op } = require('sequelize');
 
 // GET /mesas
@@ -7,7 +7,6 @@ const listar = async (req, res) => {
     const { ativa } = req.query;
     const where = {};
     if (ativa !== undefined) where.ativa = ativa === 'true';
-
     const mesas = await Mesa.findAll({ where, order: [['numero', 'ASC']] });
     return res.json(mesas);
   } catch (error) {
@@ -39,15 +38,12 @@ const verificarDisponibilidade = async (req, res) => {
     if (!data_hora || !num_pessoas) {
       return res.status(400).json({ erro: 'Informe data_hora e num_pessoas' });
     }
-
     const dataReserva = new Date(data_hora);
     const janela = 2 * 60 * 60 * 1000;
-
     const mesas = await Mesa.findAll({
       where: { capacidade: { [Op.gte]: parseInt(num_pessoas) }, ativa: true },
       order: [['capacidade', 'ASC']],
     });
-
     const disponibilidade = await Promise.all(
       mesas.map(async (mesa) => {
         const conflito = await Reserva.findOne({
@@ -65,7 +61,6 @@ const verificarDisponibilidade = async (req, res) => {
         return { ...mesa.toJSON(), disponivel: !conflito };
       })
     );
-
     return res.json(disponibilidade);
   } catch (error) {
     return res.status(500).json({ erro: 'Erro ao verificar disponibilidade', detalhe: error.message });
@@ -77,6 +72,15 @@ const criar = async (req, res) => {
   try {
     const { numero, capacidade, ativa } = req.body;
     const mesa = await Mesa.create({ numero, capacidade, ativa });
+
+    await LogAcaoAdmin.create({
+      id_admin: req.admin.id_admin,
+      acao: 'mesa_criada',
+      entidade: 'mesa',
+      entidade_id: mesa.id_mesa,
+      descricao: `Mesa ${mesa.numero} com ${mesa.capacidade} lugares`,
+    });
+
     return res.status(201).json(mesa);
   } catch (error) {
     if (error.name === 'SequelizeValidationError') {
@@ -91,8 +95,18 @@ const atualizar = async (req, res) => {
   try {
     const mesa = await Mesa.findByPk(req.params.id);
     if (!mesa) return res.status(404).json({ erro: 'Mesa não encontrada' });
+
     const { numero, capacidade, ativa } = req.body;
     await mesa.update({ numero, capacidade, ativa });
+
+    await LogAcaoAdmin.create({
+      id_admin: req.admin.id_admin,
+      acao: 'mesa_atualizada',
+      entidade: 'mesa',
+      entidade_id: mesa.id_mesa,
+      descricao: `Mesa ${mesa.numero} atualizada`,
+    });
+
     return res.json(mesa);
   } catch (error) {
     if (error.name === 'SequelizeValidationError') {
