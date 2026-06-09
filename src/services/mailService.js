@@ -1,12 +1,5 @@
 const nodemailer = require('nodemailer');
 
-console.log('MAIL CONFIG:', {
-  host: process.env.MAIL_HOST,
-  port: process.env.MAIL_PORT,
-  user: process.env.MAIL_USER,
-  pass: process.env.MAIL_PASS ? '***ok***' : 'VAZIO',
-});
-
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
   port: Number(process.env.MAIL_PORT),
@@ -18,14 +11,6 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false,
   },
-});
-
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ SMTP connection error:', error.message);
-  } else {
-    console.log('✅ SMTP pronto para enviar e-mails');
-  }
 });
 
 const enviarConviteAdmin = async ({ nome, email, senha_temporaria }) => {
