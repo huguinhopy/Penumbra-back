@@ -8,11 +8,12 @@ const includeCompleto = [
 // GET /reservas
 const listar = async (req, res) => {
   try {
-    const { status, data, email, telefone } = req.query;
+    const { status, data, email, telefone, nome } = req.query;
     const where = {};
     if (status) where.status = status;
     if (email) where.email = email;
     if (telefone) where.telefone = telefone;
+    if (nome) where.nome = nome;
     if (data) {
       const inicio = new Date(data);
       const fim = new Date(data);
