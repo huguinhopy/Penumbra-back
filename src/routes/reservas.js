@@ -6,8 +6,8 @@ const { autenticar } = require('../middlewares/auth');
 router.post('/', ctrl.criar);
 router.delete('/:id', ctrl.remover);
 
-router.get('/', autenticar, ctrl.listar);
-router.get('/:id', autenticar, ctrl.buscarPorId);
+router.get('/', ctrl.listar);
+router.get('/:id', ctrl.buscarPorId);
 router.patch('/:id/status', autenticar, ctrl.atualizarStatus);
 
 module.exports = router;
