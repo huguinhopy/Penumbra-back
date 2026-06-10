@@ -11,9 +11,21 @@ const listar = async (req, res) => {
     const { status, data, email, telefone, nome } = req.query;
     const where = {};
     if (status) where.status = status;
-    if (email) where.email = email;
-    if (telefone) where.telefone = telefone;
-    if (nome) where.nome = nome;
+    if (email) {
+      where.email = {
+        [Op.iLike]: `%${email}%`
+      }
+    }
+    if (telefone) {
+      where.telefone = {
+        [Op.like]: `%${telefone}%`
+      }
+    }
+    if (nome) {
+      where.nome = {
+        [Op.iLike]: `%${nome}%`
+      }
+    }
     if (data) {
       const inicio = new Date(data);
       const fim = new Date(data);
